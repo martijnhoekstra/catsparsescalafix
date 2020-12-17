@@ -94,4 +94,7 @@ object Rfc5234 {
     Parser.charIn(0x21.toChar to 0x7e.toChar)
 
   val digits = digit.rep
+
+  val foo = Parser.repSep(digits, 2, octet)
+  val bar = Parser.rep0Sep(digits, 2, octet)
 }
