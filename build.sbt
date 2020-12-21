@@ -36,7 +36,7 @@ lazy val input = project.settings(
 
 lazy val output = project.settings(
   skip in publish := true,
-  libraryDependencies += "org.typelevel" %% "cats-parse" % "0.3-35-6d85cc6"
+  libraryDependencies += "org.typelevel" %% "cats-parse" % "0.3-50-0eae46e-SNAPSHOT"
 )
 
 lazy val tests = project

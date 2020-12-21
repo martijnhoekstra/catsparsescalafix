@@ -80,8 +80,10 @@ object Rfc5234 {
     * Do not use when defining mail headers and use with caution in
     * other contexts.
     */
-  val lwsp: Parser0[Unit] =
-    Parser.rep0(wsp.orElse(crlf *> wsp)).void
+  val lwsp: Parser0[Unit] = {
+    val inner = wsp.orElse(crlf *> wsp)
+    inner.rep0.void
+  }
 
   /** 8 bits of data
     */
