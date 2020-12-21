@@ -17,9 +17,8 @@ addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.24")
 Then run the scalafix from the sbt console
 
 ```
-Test / scalafixEnable
-Test / scalafix github:martijnhoekstra/catsparsescalafix/Parser01Fix
 scalafixEnable
+Test / scalafix github:martijnhoekstra/catsparsescalafix/Parser01Fix
 scalafix github:martijnhoekstra/catsparsescalafix/Parser01Fix
 ```
 
