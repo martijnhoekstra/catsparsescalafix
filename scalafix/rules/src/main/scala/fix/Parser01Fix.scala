@@ -48,7 +48,6 @@ class Parser01Fix extends SemanticRule("Parser01Fix") {
   }
 
   val pClassRenames = List(
-    "orElse" -> "orElse0",
     "orElse1" -> "orElse",
     "rep" -> "rep0",
     "rep1" -> "rep"
