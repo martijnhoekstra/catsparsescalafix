@@ -48,7 +48,6 @@ class Parser01Fix extends SemanticRule("Parser01Fix") {
   }
 
   val pClassRenames = List(
-    "orElse" -> "orElse0",
     "orElse1" -> "orElse",
     "rep" -> "rep0",
     "rep1" -> "rep"
@@ -66,7 +65,6 @@ class Parser01Fix extends SemanticRule("Parser01Fix") {
   object ReplacedRep {
     def unapply(tree: Tree)(implicit doc: SemanticDocument): Option[Patch] = tree match {
       case appl @ Term.Apply(fun, arg :: Nil) =>
-        if (fun.toString().contains("rep")) { println(s"testing $fun") }
         if (SymbolMatcher.exact("cats/parse/Parser.rep().").matches(fun)) {
           Some(Patch.replaceTree(appl, s"$arg.rep0"))
         }
