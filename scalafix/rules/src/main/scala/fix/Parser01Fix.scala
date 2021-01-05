@@ -2,8 +2,6 @@ package fix
 
 import scalafix.v1._
 import scala.meta._
-import scala.meta.Decl.Def
-import scala.meta.Type.Apply
 
 class Parser01Fix extends SemanticRule("Parser01Fix") {
 
@@ -22,7 +20,6 @@ class Parser01Fix extends SemanticRule("Parser01Fix") {
     "unmapX",
     "computeX",
     "deferX",
-    "repXSep",
     "repAsX",
     "lengthX"
   )
@@ -33,7 +30,13 @@ class Parser01Fix extends SemanticRule("Parser01Fix") {
       )
     )
     .toMap ++
-    Map("flatMap" -> "flatMap0", "product" -> "product0", "softProduct" -> "softProduct0")
+    Map(
+      "flatMap" -> "flatMap0",
+      "product" -> "product0",
+      "softProduct" -> "softProduct0",
+      "rep1Sep" -> "repSep",
+      "repSep" -> "repSep0"
+    )
 
   val parserModuleReplacements = methodRenames.map { case (from, to) =>
     s"cats/parse/Parser.$from" -> to
@@ -79,7 +82,10 @@ class Parser01Fix extends SemanticRule("Parser01Fix") {
           case Term.ApplyInfix(_) => s"($arg)"
           case _                  => arg.toString()
         }
-        val suffix = if (args.isEmpty) "" else args.mkString("(", ",", ")")
+        val suffix = args match {
+          case Nil | List(Lit.Int(1)) => ""
+          case _ => args.mkString("(", ", ", ")")
+        }
         val rep0Matcher = List("", "+1", "+2", "+3")
           .map(ov => SymbolMatcher.exact(s"cats/parse/Parser.rep($ov)."))
           .reduceLeft(_ + _)
@@ -89,7 +95,6 @@ class Parser01Fix extends SemanticRule("Parser01Fix") {
         if (rep0Matcher.matches(fun)) {
           Some(Patch.replaceTree(appl, s"$rarg.rep0$suffix"))
         } else if (repMatcher.matches(fun)) {
-          println(s"we be matching, got $rarg")
           Some(Patch.replaceTree(appl, s"$rarg.rep$suffix"))
         } else {
           None
@@ -144,6 +149,11 @@ class Parser01Fix extends SemanticRule("Parser01Fix") {
           }
         }.asPatch
       case Importer(q"cats.parse.Parser", importees) =>
+        importees.collect { case imp @ Importee.Name(Name(nme)) =>
+          if (nme == "rep1" || nme == "rep") Patch.removeImportee(imp)
+          else methodRenames.get(nme).map(Patch.replaceTree(imp, _)).getOrElse(Patch.empty)
+        }.asPatch
+      case Importer(q"Parser", importees) =>
         importees.collect { case imp @ Importee.Name(Name(nme)) =>
           if (nme == "rep1" || nme == "rep") Patch.removeImportee(imp)
           else methodRenames.get(nme).map(Patch.replaceTree(imp, _)).getOrElse(Patch.empty)

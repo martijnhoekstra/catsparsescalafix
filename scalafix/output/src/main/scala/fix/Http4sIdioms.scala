@@ -1,12 +1,14 @@
 package fix
 
 import cats.data.NonEmptyList
-import cats.parse.Parser.{string, ignoreCase, char}
-import cats.parse.{Parser => P}
+import cats.parse.Parser.string
+import cats.parse.Parser0
+import cats.parse.Parser
+import Parser.{ignoreCase, char}
 
 object Http4sIdioms {
 
-  val x: P[NonEmptyList[Unit]] = (char('a') *> char('b') *> char('c')).rep(1)
-  val y: P[String] = string(x)
+  val x: Parser[NonEmptyList[Unit]] = (char('a') *> char('b') *> char('c')).rep
+  val y: Parser[String] = string(x)
   val z = ignoreCase("FooBar")
 }

@@ -98,5 +98,5 @@ object Rfc5234 {
   val digits = digit.rep
 
   val foo = Parser.repSep(digits, 2, octet)
-  val bar = Parser.rep0Sep(digits, 2, octet)
+  val bar = Parser.repSep0(digits, 2, octet)
 }
