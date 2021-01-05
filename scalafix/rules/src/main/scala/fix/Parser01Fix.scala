@@ -7,42 +7,52 @@ import scala.meta.Type.Apply
 
 class Parser01Fix extends SemanticRule("Parser01Fix") {
 
-  val parserModuleReplacements = {
-    val renames = List(
-      "stringX",
-      "ignoreCaseX",
-      "oneOfX",
-      "mapX",
-      "tailRecMX",
-      "selectX",
-      "charsWhileX",
-      "untilX",
-      "voidX",
-      "backtrackX",
-      "asX",
-      "unmapX",
-      "computeX",
-      "deferX",
-      "repXSep",
-      "repAsX",
-      "lengthX"
-    )
-      .flatMap(old =>
-        List(
-          old.replace("X", "1") -> old.replace("X", ""),
-          old.replace("X", "") -> old.replace("X", "0")
-        )
+  val methodRenames = List(
+    "stringX",
+    "ignoreCaseX",
+    "oneOfX",
+    "mapX",
+    "tailRecMX",
+    "selectX",
+    "charsWhileX",
+    "untilX",
+    "voidX",
+    "backtrackX",
+    "asX",
+    "unmapX",
+    "computeX",
+    "deferX",
+    "repXSep",
+    "repAsX",
+    "lengthX"
+  )
+    .flatMap(old =>
+      List(
+        old.replace("X", "1") -> old.replace("X", ""),
+        old.replace("X", "") -> old.replace("X", "0")
       )
-      .toMap ++
-      Map("flatMap" -> "flatMap0", "product" -> "product0", "softProduct" -> "softProduct0")
+    )
+    .toMap ++
+    Map("flatMap" -> "flatMap0", "product" -> "product0", "softProduct" -> "softProduct0")
 
-    renames.map { case (from, to) => s"cats/parse/Parser.$from" -> to }
+  val parserModuleReplacements = methodRenames.map { case (from, to) =>
+    s"cats/parse/Parser.$from" -> to
   }
 
   object RenamedParserModuleMethodSelect {
     def unapply(t: Tree)(implicit doc: SemanticDocument): Option[String] = t match {
       case Term.Select(_, Name(_)) =>
         parserModuleReplacements.get(t.symbol.value.takeWhile(_ != '('))
+      case _ => None
+    }
+  }
+
+  object RenamedParserModuleMethodNoSelect {
+    def unapply(t: Tree)(implicit doc: SemanticDocument): Option[(String, String)] = t match {
+      case Term.Apply((Name(_), args)) =>
+        val newArgs = args.mkString(",")
+        for (newName <- parserModuleReplacements.get(t.symbol.value.takeWhile(_ != '(')))
+          yield (newName, newArgs)
       case _ => None
     }
   }
@@ -64,14 +74,24 @@ class Parser01Fix extends SemanticRule("Parser01Fix") {
 
   object ReplacedRep {
     def unapply(tree: Tree)(implicit doc: SemanticDocument): Option[Patch] = tree match {
-      case appl @ Term.Apply(fun, arg :: Nil) =>
-        if (SymbolMatcher.exact("cats/parse/Parser.rep().").matches(fun)) {
-          Some(Patch.replaceTree(appl, s"$arg.rep0"))
+      case appl @ Term.Apply(fun, arg :: args) =>
+        val rarg = arg match {
+          case Term.ApplyInfix(_) => s"($arg)"
+          case _                  => arg.toString()
         }
-        else if (SymbolMatcher.exact("cats/parse/Parser.rep1().").matches(fun)) {
-          Some(Patch.replaceTree(appl, s"$arg.rep"))
-        }
-        else {
+        val suffix = if (args.isEmpty) "" else args.mkString("(", ",", ")")
+        val rep0Matcher = List("", "+1", "+2", "+3")
+          .map(ov => SymbolMatcher.exact(s"cats/parse/Parser.rep($ov)."))
+          .reduceLeft(_ + _)
+        val repMatcher = List("", "+1", "+2", "+3")
+          .map(ov => SymbolMatcher.exact(s"cats/parse/Parser.rep1($ov)."))
+          .reduceLeft(_ + _)
+        if (rep0Matcher.matches(fun)) {
+          Some(Patch.replaceTree(appl, s"$rarg.rep0$suffix"))
+        } else if (repMatcher.matches(fun)) {
+          println(s"we be matching, got $rarg")
+          Some(Patch.replaceTree(appl, s"$rarg.rep$suffix"))
+        } else {
           None
         }
       case _ => None
@@ -123,8 +143,15 @@ class Parser01Fix extends SemanticRule("Parser01Fix") {
             Patch.replaceTree(imp, "Parser")
           }
         }.asPatch
-      case ReplacedRep(patch) => patch
+      case Importer(q"cats.parse.Parser", importees) =>
+        importees.collect { case imp @ Importee.Name(Name(nme)) =>
+          if (nme == "rep1" || nme == "rep") Patch.removeImportee(imp)
+          else methodRenames.get(nme).map(Patch.replaceTree(imp, _)).getOrElse(Patch.empty)
+        }.asPatch
+      case ReplacedRep(patch)                       => patch
       case t @ RenamedParserInstanceMethod(newName) => Patch.replaceTree(t, newName)
+      case t @ RenamedParserModuleMethodNoSelect(newName, args) =>
+        Patch.replaceTree(t, s"$newName($args)")
       case t @ RenamedParserModuleMethodSelect(newName) =>
         Patch.replaceTree(t, s"$pModuleName.$newName")
       case tpe @ ParserTpeFor(to) => Patch.replaceTree(tpe, to)
