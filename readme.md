@@ -54,6 +54,15 @@ project, your test will no longer compile, and can't be scalafixed.
 * When you had `Parser.rep(inner)` where `inner` is some other tree that has
   a replacement, then you'll end up with scrambled output. Either Factor out
   `inner` into a val first, or manually clean up after.
+  
+* When you have `import cats.paser.Parser.foo1`, then `foo1` will be properly
+  renamed throughout, but if you had
+  ```
+  import cats.parse.Parser
+  //somewhere later
+  import Parser.foo1
+  ```
+  then the import will not be renamed properly (but the usages should be)
 
 * Other bits: if you had more bits you had to clean up manually, please report
   an issue so it can be added, or make a PR to add it yourself. Maybe we can fix
